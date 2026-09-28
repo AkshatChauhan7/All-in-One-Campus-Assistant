@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import api from "../services/api";
 
 function Login() {
     const navigate = useNavigate();
@@ -20,22 +19,19 @@ function Login() {
         setLoading(true);
 
         try {
-            await login(email, password);
-            const userResponse = await api.get("/auth/me", {
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-                },
-            });
-
-            const loggedInUser = userResponse.data;
+            const loggedInUser = await login(email, password);
 
             if (loggedInUser.role === "platform_admin") {
                 navigate("/platform-admin");
-            } else {
+            } else if (loggedInUser.role === "org_admin") {
+                navigate("/organisation-admin");
+            } else if (loggedInUser.role === "support_agent") {
                 navigate("/dashboard");
+            } else if (loggedInUser.role === "user") {
+                navigate("/dashboard");
+            } else {
+                setError("Unknown user role.");
             }
-            // await login(email, password);
-            // navigate("/dashboard");
         } catch (error) {
             const message =
                 error.response?.data?.detail ||
@@ -49,7 +45,6 @@ function Login() {
 
     return (
         <div className="auth-page">
-
             <div className="auth-card">
 
                 <div className="brand">
@@ -127,7 +122,6 @@ function Login() {
                 </button>
 
             </div>
-
         </div>
     );
 }

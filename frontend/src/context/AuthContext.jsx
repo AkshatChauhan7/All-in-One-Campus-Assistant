@@ -11,7 +11,10 @@ export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Get current user if a token already exists
+    // --------------------------------------------------
+    // Load logged-in user
+    // --------------------------------------------------
+
     useEffect(() => {
         const loadUser = async () => {
             if (!token) {
@@ -20,17 +23,14 @@ export function AuthProvider({ children }) {
             }
 
             try {
-                const response = await api.get("/auth/me", {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                });
+                const response = await api.get("/auth/me");
 
                 setUser(response.data);
             } catch (error) {
                 console.error("Authentication failed:", error);
 
                 localStorage.removeItem("access_token");
+
                 setToken(null);
                 setUser(null);
             } finally {
@@ -41,7 +41,10 @@ export function AuthProvider({ children }) {
         loadUser();
     }, [token]);
 
+    // --------------------------------------------------
     // Login
+    // --------------------------------------------------
+
     const login = async (email, password) => {
         const response = await api.post("/auth/login", {
             email,
@@ -50,15 +53,55 @@ export function AuthProvider({ children }) {
 
         const accessToken = response.data.access_token;
 
-        localStorage.setItem("access_token", accessToken);
+        localStorage.setItem(
+            "access_token",
+            accessToken
+        );
+
         setToken(accessToken);
 
-        return accessToken;
+        // Fetch complete user information
+        const userResponse = await api.get("/auth/me");
+
+        setUser(userResponse.data);
+
+        return userResponse.data;
     };
 
+    // --------------------------------------------------
+    // Register
+    // --------------------------------------------------
+
+    const register = async ({
+        name,
+        email,
+        password,
+        organisation_id,
+        role,
+        department_id,
+    }) => {
+        const response = await api.post("/auth/register", {
+            name,
+            email,
+            password,
+            organisation_id,
+            role,
+            department_id:
+                role === "support_agent"
+                    ? department_id
+                    : null,
+        });
+
+        return response.data;
+    };
+
+    // --------------------------------------------------
     // Logout
+    // --------------------------------------------------
+
     const logout = () => {
         localStorage.removeItem("access_token");
+
         setToken(null);
         setUser(null);
     };
@@ -67,8 +110,11 @@ export function AuthProvider({ children }) {
         token,
         user,
         loading,
+
         login,
+        register,
         logout,
+
         isAuthenticated: !!token,
     };
 

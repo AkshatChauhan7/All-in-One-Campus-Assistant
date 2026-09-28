@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-
+from bson import ObjectId
 from fastapi import APIRouter, HTTPException
 
 from database import (
@@ -203,3 +203,43 @@ async def list_organisations():
         })
 
     return organisations
+
+
+@router.get("/{organisation_id}/departments")
+async def get_organisation_departments(
+    organisation_id: str
+):
+    try:
+        organisation_object_id = ObjectId(organisation_id)
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid organisation ID"
+        )
+
+    # Make sure organisation exists and is active
+    organisation = await organisations_collection.find_one({
+        "_id": organisation_object_id,
+        "status": "active"
+    })
+
+    if not organisation:
+        raise HTTPException(
+            status_code=404,
+            detail="Organisation not found"
+        )
+
+    cursor = departments_collection.find({
+        "organisation_id": organisation_object_id,
+        "is_active": True
+    })
+
+    departments = []
+
+    async for department in cursor:
+        departments.append({
+            "id": str(department["_id"]),
+            "name": department["name"]
+        })
+
+    return departments
