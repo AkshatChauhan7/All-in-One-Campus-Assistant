@@ -4,7 +4,16 @@ from services.orchestration.classifier import QueryClassifier
 
 
 async def main():
+
     classifier = QueryClassifier()
+
+    available_departments = [
+        "IT",
+        "HR",
+        "Finance",
+        "Facilities",
+        "Administration",
+    ]
 
     test_messages = [
         "My laptop is not connecting to campus WiFi.",
@@ -16,7 +25,11 @@ async def main():
     ]
 
     for message in test_messages:
-        result = await classifier.classify(message)
+
+        result = await classifier.classify(
+            message=message,
+            available_departments=available_departments,
+        )
 
         print("\n" + "=" * 60)
         print("MESSAGE:", message)

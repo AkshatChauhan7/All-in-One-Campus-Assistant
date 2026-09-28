@@ -21,16 +21,26 @@ class QueryClassifier:
             host=settings.OLLAMA_HOST
         )
 
-    async def classify(self, message: str) -> ClassificationResult:
+    async def classify(
+        self,
+        message: str,
+        available_departments: list[str],
+    ) -> ClassificationResult:
+
         message = message.strip()
 
-        if not message:
+        if not message or not available_departments:
             return ClassificationResult(
                 topics=[],
                 departments=[],
                 confidence=0.0,
                 needs_clarification=True,
             )
+
+        department_list = "\n".join(
+            f"- {department}"
+            for department in available_departments
+        )
 
         prompt = f"""
 /no_think
@@ -40,20 +50,15 @@ campus support system.
 
 Your ONLY job is to classify the user's message.
 
-Available departments:
-- IT
-- HR
-- Finance
-- Facilities
-- Administration
-- Other
+Available departments for this organisation:
+{department_list}
 
 Rules:
 
 1. Identify every distinct topic in the user's message.
 2. Identify the department responsible for each topic.
 3. If multiple unrelated issues exist, return multiple departments.
-4. Only use departments from the available department list.
+4. You MUST ONLY use departments from the provided list.
 5. Confidence must be a number between 0.0 and 1.0.
 6. Use low confidence when the message is ambiguous.
 7. Set needs_clarification=true when the query cannot be
@@ -80,7 +85,10 @@ User message:
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a precise classification system. Return only JSON.",
+                    "content": (
+                        "You are a precise classification system. "
+                        "Return only JSON."
+                    ),
                 },
                 {
                     "role": "user",
@@ -92,11 +100,15 @@ User message:
                 "properties": {
                     "topics": {
                         "type": "array",
-                        "items": {"type": "string"},
+                        "items": {
+                            "type": "string"
+                        },
                     },
                     "departments": {
                         "type": "array",
-                        "items": {"type": "string"},
+                        "items": {
+                            "type": "string"
+                        },
                     },
                     "confidence": {
                         "type": "number",
@@ -120,24 +132,20 @@ User message:
 
         result = json.loads(raw_content)
 
-        allowed_departments = {
-            "IT",
-            "HR",
-            "Finance",
-            "Facilities",
-            "Administration",
-            "Other",
-        }
-
+        # Validate that Qwen only returned departments
+        # that actually exist for this organisation.
         departments = [
             department
             for department in result["departments"]
-            if department in allowed_departments
+            if department in available_departments
         ]
 
         confidence = max(
             0.0,
-            min(1.0, float(result["confidence"]))
+            min(
+                1.0,
+                float(result["confidence"])
+            )
         )
 
         needs_clarification = (
